@@ -80,7 +80,9 @@ This platform solves all three using **AI + analytics + modern UI**.
 
 ## 🏗 **Project Structure**
 
-```txt
+## 🏗 Project Structure
+
+```text
 AI-InternShip
 │
 ├── client/                 # React frontend
@@ -97,8 +99,12 @@ AI-InternShip
 │   └── utils/              # AI helpers
 │
 └── README.md
-⚙️ Environment Variables
-Backend (server/.env)
+```
+
+## ⚙️ Environment Variables
+
+### Backend (`server/.env`)
+```env
 PORT=5000
 MONGO_URI=your_mongodb_atlas_uri
 JWT_SECRET=your_jwt_secret
@@ -106,56 +112,62 @@ JWT_SECRET=your_jwt_secret
 GROQ_API_KEY=your_groq_api_key
 RAPIDAPI_KEY=your_rapidapi_key
 RAPIDAPI_HOST=jsearch.p.rapidapi.com
-Frontend (client/.env)
+```
+
+### Frontend (`client/.env`)
+```env
 VITE_API_BASE_URL=https://ai-internship.onrender.com
 VITE_FIREBASE_API_KEY=your_key
 VITE_FIREBASE_AUTH_DOMAIN=your_domain
 VITE_FIREBASE_PROJECT_ID=your_project_id
-📦 Installation & Setup
-Prerequisites
-Node.js v18+
+```
 
-MongoDB Atlas
+## 📦 Installation & Setup
 
-Firebase Project
+### Prerequisites
+- Node.js v18+
+- MongoDB Atlas
+- Firebase Project
+- Groq AI API Key
+- RapidAPI Key
 
-Groq AI API Key
-
-RapidAPI Key
-
-Clone Repository
+### Clone Repository
+```bash
 git clone https://github.com/nas23ise-dot/AI-InternShip.git
 cd AI-InternShip
-Backend Setup
+```
+
+### Backend Setup
+```bash
 cd server
 npm install
 npm run dev
-Frontend Setup
+```
+
+### Frontend Setup
+```bash
 cd client
 npm install
 npm run dev
-🔐 Authentication Flow
-Firebase handles login & signup
+```
 
-JWT secures backend APIs
+## 🔐 Authentication Flow
+- Firebase handles login & signup
+- JWT secures backend APIs
+- Scalable for future role-based access
 
-Scalable for future role-based access
+## 📈 Future Enhancements
+- AI resume scoring & ATS matching
+- Email notifications for application updates
+- Admin dashboard
+- Company-wise analytics
 
-📈 Future Enhancements
-AI resume scoring & ATS matching
+## 🧠 Why This Project Stands Out
+- ✔ Real-world AI integration
+- ✔ Production deployment
+- ✔ Clean MERN architecture
+- ✔ Strong resume & interview project
 
-Email notifications for application updates
-
-Admin dashboard
-
-Company-wise analytics
-
-🧠 Why This Project Stands Out
-✔ Real-world AI integration
-✔ Production deployment
-✔ Clean MERN architecture
-✔ Strong resume & interview project
-
-👨‍💻 Author
-Naveen S
+## 👨‍💻 Author
+**Naveen S**
 CSE Student | MERN Stack Developer | AI Enthusiast
