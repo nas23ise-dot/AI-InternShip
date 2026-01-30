@@ -29,6 +29,12 @@ const testCases = [
         input: { name: 'AWS Cloud', url: 'https://...' },
         type: 'certification',
         expected: 'https://www.coursera.org/search?query=AWS%20Cloud'
+    },
+    {
+        name: 'Missing Protocol',
+        input: { name: 'Google', url: 'www.google.com' },
+        type: 'resource',
+        expected: 'https://www.google.com'
     }
 ];
 

@@ -252,6 +252,11 @@ function sanitizeLink(linkObj, type = 'resource') {
         }
     }
 
+    // Ensure the URL starts with http:// or https://
+    if (!linkObj.url.match(/^https?:\/\//i)) {
+        linkObj.url = 'https://' + linkObj.url;
+    }
+
     return linkObj;
 }
 
