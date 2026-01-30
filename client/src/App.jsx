@@ -20,8 +20,11 @@ import { ThemeProvider } from './context/ThemeContext';
 const PrivateRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return (
-    <div className="flex h-screen items-center justify-center">
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+    <div className="flex h-screen items-center justify-center bg-slate-950">
+      <div className="text-center">
+        <div className="h-8 w-8 mx-auto animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+        <p className="mt-4 text-white">Loading...</p>
+      </div>
     </div>
   );
   return user ? children : <Navigate to="/login" />;
