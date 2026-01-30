@@ -1,8 +1,0 @@
-firebase : https://console.firebase.google.com/u/0/project/internship-569fd/firestore/databases/-default-/data/~2Fusers~2FNPcOJQQ08wh8hInYTfLxsKycivO2
-
-
-Fetching Job - JSearch : https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch/playground/endpoint_1a4de4d7-7abd-4ec2-a897-57a0fc5ad496
-
-
-
-chart bot grog API: https://console.groq.com/keys

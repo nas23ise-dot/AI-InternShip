@@ -3,7 +3,10 @@ const router = express.Router();
 const Groq = require('groq-sdk');
 const { auth } = require('../middleware/auth');
 const User = require('../models/User');
+const Application = require('../models/Application');
 const mongoose = require('mongoose');
+const { getResourcesForRole } = require('../utils/learningResources');
+const { getQuestionsByRound } = require('../utils/interviewQuestions');
 
 // Initialize Groq client
 const groq = new Groq({
@@ -293,11 +296,60 @@ IMPORTANT: For recommendedResources, provide helpful learning resources. The fro
             roadmap = extractJson(response);
         }
 
+        // Add real, curated learning resources from database
+        const realResources = getResourcesForRole(dreamJob);
+
+        // Convert the curated resources into the format expected by frontend
+        const formattedResources = [];
+        if (realResources.youtube) {
+            formattedResources.push(...realResources.youtube);
+        }
+        if (realResources.courses) {
+            formattedResources.push(...realResources.courses);
+        }
+        if (realResources.certifications) {
+            formattedResources.push(...realResources.certifications);
+        }
+        if (realResources.documentation) {
+            formattedResources.push(...realResources.documentation);
+        }
+
+        // Replace AI-generated resources with real ones
+        roadmap.recommendedResources = formattedResources;
+
+        // Ensure dreamJob is present (critical for interview questions feature)
+        roadmap.dreamJob = dreamJob;
+
         res.json(roadmap);
 
     } catch (err) {
         console.error('Groq Roadmap Error:', err);
         res.status(500).json({ message: 'AI Roadmap generation error', error: err.message });
+    }
+});
+
+// Interview Questions Endpoint
+router.post('/interview-questions', auth, async (req, res) => {
+    try {
+        const { role } = req.body;
+        console.log('Fetching interview questions for role:', role);
+
+        if (!role) {
+            return res.status(400).json({ message: 'Role is required' });
+        }
+
+        // Get questions organized by round
+        const questionsByRound = getQuestionsByRound(role);
+
+        res.json({
+            role,
+            questionsByRound,
+            totalQuestions: Object.values(questionsByRound).reduce((sum, questions) => sum + questions.length, 0)
+        });
+
+    } catch (err) {
+        console.error('Interview Questions Error:', err);
+        res.status(500).json({ message: 'Failed to fetch interview questions', error: err.message });
     }
 });
 
@@ -349,6 +401,119 @@ GUIDELINES:
     } catch (err) {
         console.error('Groq Chat Error:', err);
         res.status(500).json({ message: 'AI Chat error', error: err.message });
+    }
+});
+
+
+// Career Advice Based on Saved Applications
+router.post('/career-advice', auth, async (req, res) => {
+    try {
+        console.log('Generating career advice for user:', req.user.id);
+
+        if (!process.env.GROQ_API_KEY || process.env.GROQ_API_KEY === 'your_groq_api_key_here') {
+            return res.status(500).json({ message: 'AI Service configuration error. Please set GROQ_API_KEY in .env' });
+        }
+
+        // Fetch user info
+        let user = null;
+        if (mongoose.Types.ObjectId.isValid(req.user.id)) {
+            user = await User.findById(req.user.id);
+        }
+        if (!user && req.user.id) {
+            user = await User.findOne({ uid: req.user.id });
+        }
+
+        // Fetch user's applications
+        let applications = [];
+        if (user) {
+            applications = await Application.find({ student: user._id })
+                .sort({ appliedDate: -1 })
+                .limit(20)
+                .lean();
+        }
+
+        const userSkills = user?.skills || ['General Skills'];
+        const userName = user?.name || 'User';
+
+        // Build application summary for AI
+        const applicationSummary = applications.length > 0
+            ? applications.map(app => ({
+                company: app.company,
+                role: app.role,
+                status: app.status,
+                appliedDate: app.appliedDate ? new Date(app.appliedDate).toLocaleDateString() : 'N/A',
+                matchPercentage: app.matchPercentage || 'N/A'
+            }))
+            : [];
+
+        const statusCounts = {
+            total: applications.length,
+            applied: applications.filter(a => a.status === 'Applied').length,
+            interview: applications.filter(a => a.status === 'Interview').length,
+            offer: applications.filter(a => a.status === 'Offer').length,
+            rejected: applications.filter(a => a.status === 'Rejected').length
+        };
+
+        const systemPrompt = `You are an elite AI Career Coach. Provide personalized, actionable career advice based on the user's job application history and profile. Be encouraging but realistic. Focus on patterns, improvements, and strategic next steps.`;
+
+        const userPrompt = `
+Analyze this user's job search progress and provide strategic career advice.
+
+USER PROFILE:
+- Name: ${userName}
+- Skills: ${userSkills.join(', ')}
+
+APPLICATION HISTORY (${statusCounts.total} total applications):
+- Applied: ${statusCounts.applied}
+- In Interview: ${statusCounts.interview}
+- Offers: ${statusCounts.offer}
+- Rejected: ${statusCounts.rejected}
+
+RECENT APPLICATIONS:
+${JSON.stringify(applicationSummary.slice(0, 10), null, 2)}
+
+Respond with this exact JSON structure:
+{
+    "overallAssessment": "Brief assessment of their job search progress (2-3 sentences)",
+    "strengths": ["strength1", "strength2", "strength3"],
+    "areasToImprove": ["area1", "area2"],
+    "strategicAdvice": [
+        {
+            "title": "Advice Title",
+            "description": "Detailed actionable advice",
+            "priority": "high/medium/low"
+        }
+    ],
+    "roleRecommendations": ["Role 1 they should consider", "Role 2"],
+    "nextSteps": ["Immediate action 1", "Immediate action 2", "Immediate action 3"],
+    "motivationalMessage": "A personalized encouraging message for ${userName}"
+}
+
+IMPORTANT: 
+- If they have interviews pending, provide interview preparation tips specific to those companies/roles.
+- If they have rejections, analyze patterns and suggest improvements.
+- If they have offers, congratulate and help them decide.
+- If no applications yet, encourage them to start and provide guidance.
+- Reference specific companies and roles from their history when relevant.`;
+
+        const response = await callGroq(systemPrompt, userPrompt, true);
+        console.log('Groq Raw Response (Career Advice):', response);
+
+        let advice;
+        try {
+            advice = JSON.parse(response);
+        } catch (e) {
+            advice = extractJson(response);
+        }
+
+        res.json({
+            ...advice,
+            applicationStats: statusCounts
+        });
+
+    } catch (err) {
+        console.error('Career Advice Error:', err);
+        res.status(500).json({ message: 'Failed to generate career advice', error: err.message });
     }
 });
 

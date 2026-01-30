@@ -51,7 +51,7 @@ function App() {
                 <Route path="/login" element={<PageWrapper><Login /></PageWrapper>} />
                 <Route path="/register" element={<PageWrapper><Register /></PageWrapper>} />
                 <Route path="/dashboard" element={<PrivateRoute><PageWrapper><Dashboard /></PageWrapper></PrivateRoute>} />
-                <Route path="/jobs" element={<PageWrapper><JobListings /></PageWrapper>} />
+                <Route path="/jobs" element={<PrivateRoute><PageWrapper><JobListings /></PageWrapper></PrivateRoute>} />
                 <Route path="/job/:id" element={<PrivateRoute><PageWrapper><JobDetail /></PageWrapper></PrivateRoute>} />
                 <Route path="/tracker" element={<PrivateRoute><PageWrapper><ApplicationTracker /></PageWrapper></PrivateRoute>} />
                 <Route path="/analyzer" element={<PrivateRoute><PageWrapper><AIAnalyzer /></PageWrapper></PrivateRoute>} />

@@ -27,6 +27,7 @@ const Navbar = () => {
         { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { path: '/jobs', label: 'Jobs', icon: Search },
         { path: '/tracker', label: 'Tracker', icon: FileText },
+        { path: '/analyzer', label: 'Analyzer', icon: Sparkles },
         { path: '/bot', label: 'AI Bot', icon: Sparkles },
     ];
 

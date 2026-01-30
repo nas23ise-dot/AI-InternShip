@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import jsPDF from 'jspdf';
 import {
     Sparkles,
-    Upload,
     CheckCircle2,
     XCircle,
     Briefcase,
@@ -11,22 +11,19 @@ import {
     TrendingUp,
     AlertCircle,
     Zap,
-    Target
+    Target,
+    FileText,
+    X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { db } from '../firebase';
-import { collection, addDoc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../utils/api';
 
 const AIAnalyzer = () => {
     const { user } = useAuth();
-    const navigate = useNavigate();
     const [jdText, setJdText] = useState('');
     const [result, setResult] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState('');
 
     const handleAnalyze = async (e) => {
@@ -36,34 +33,157 @@ const AIAnalyzer = () => {
         setIsLoading(true);
         setError('');
         try {
-            const res = await axios.post(`${API_BASE_URL}/ai/analyze`, { jdText });
+            const res = await axios.post(`${API_BASE_URL}/ai/analyze`,
+                { jdText },
+                {
+                    headers: {
+                        'X-User-ID': user?.uid || user?._id
+                    }
+                }
+            );
             setResult(res.data);
         } catch (err) {
-            setError('Failed to analyze the description. Please try again.');
+            setError(err.response?.data?.message || 'Failed to analyze the description. Please try again.');
         } finally {
             setIsLoading(false);
         }
     };
 
-    const handleSaveToTracker = async () => {
-        if (!result || !user) return;
-        setIsSaving(true);
-        try {
-            await addDoc(collection(db, 'applications'), {
-                company: result.company || 'Unknown Company',
-                role: result.title || 'Unknown Role',
-                status: 'Applied',
-                notes: `AI Match Score: ${result.matchPercentage}%\nMissing Skills: ${result.missingSkills.join(', ')}`,
-                userId: user.uid,
-                appliedDate: new Date().toISOString(),
-                location: result.location || ''
+
+
+    const handleDownloadReport = () => {
+        if (!result) return;
+
+        const doc = new jsPDF();
+
+        // Title
+        doc.setFontSize(20);
+        doc.setFont(undefined, 'bold');
+        doc.text('AI JOB MATCH ANALYSIS REPORT', 105, 20, { align: 'center' });
+
+        // Date
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'normal');
+        doc.text(`Generated: ${new Date().toLocaleString()}`, 105, 28, { align: 'center' });
+
+        let yPos = 45;
+
+        // Overall Match Section
+        doc.setFontSize(14);
+        doc.setFont(undefined, 'bold');
+        doc.text('OVERALL MATCH', 20, yPos);
+        yPos += 8;
+
+        doc.setFontSize(11);
+        doc.setFont(undefined, 'normal');
+        doc.text(`Match Percentage: ${result.matchPercentage}%`, 20, yPos);
+        yPos += 6;
+        doc.text(`Status: ${result.feedback || 'Good Match! Just bridge a few gaps.'}`, 20, yPos);
+        yPos += 15;
+
+        // Role Details Section
+        doc.setFontSize(14);
+        doc.setFont(undefined, 'bold');
+        doc.text('ROLE DETAILS', 20, yPos);
+        yPos += 8;
+
+        doc.setFontSize(11);
+        doc.setFont(undefined, 'normal');
+        doc.text(`Position: ${result.title || 'N/A'}`, 20, yPos);
+        yPos += 6;
+        doc.text(`Company: ${result.company || 'N/A'}`, 20, yPos);
+        yPos += 6;
+        doc.text(`Location: ${result.location || 'N/A'}`, 20, yPos);
+        yPos += 15;
+
+        // Matched Skills Section
+        doc.setFontSize(14);
+        doc.setFont(undefined, 'bold');
+        doc.text('MATCHED SKILLS', 20, yPos);
+        yPos += 8;
+
+        doc.setFontSize(11);
+        doc.setFont(undefined, 'normal');
+        if (result.matchedSkills && result.matchedSkills.length > 0) {
+            result.matchedSkills.forEach((skill) => {
+                if (yPos > 270) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+                doc.text(`✓ ${skill}`, 25, yPos);
+                yPos += 6;
             });
-            navigate('/tracker');
-        } catch (err) {
-            setError('Failed to save to tracker');
-        } finally {
-            setIsSaving(false);
+        } else {
+            doc.text('No matched skills found', 25, yPos);
+            yPos += 6;
         }
+        yPos += 10;
+
+        // Missing Skills Section
+        if (yPos > 250) {
+            doc.addPage();
+            yPos = 20;
+        }
+        doc.setFontSize(14);
+        doc.setFont(undefined, 'bold');
+        doc.text('MISSING SKILLS (Areas to Improve)', 20, yPos);
+        yPos += 8;
+
+        doc.setFontSize(11);
+        doc.setFont(undefined, 'normal');
+        if (result.missingSkills && result.missingSkills.length > 0) {
+            result.missingSkills.forEach((skill) => {
+                if (yPos > 270) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+                doc.text(`✗ ${skill}`, 25, yPos);
+                yPos += 6;
+            });
+        } else {
+            doc.text('Excellent! You have all core skills.', 25, yPos);
+            yPos += 6;
+        }
+        yPos += 10;
+
+        // AI Recommendations Section
+        if (yPos > 250) {
+            doc.addPage();
+            yPos = 20;
+        }
+        doc.setFontSize(14);
+        doc.setFont(undefined, 'bold');
+        doc.text('AI RECOMMENDATIONS', 20, yPos);
+        yPos += 8;
+
+        doc.setFontSize(11);
+        doc.setFont(undefined, 'normal');
+        if (result.suggestions && result.suggestions.length > 0) {
+            result.suggestions.forEach((suggestion, i) => {
+                if (yPos > 265) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+                const lines = doc.splitTextToSize(`${i + 1}. ${suggestion}`, 170);
+                doc.text(lines, 20, yPos);
+                yPos += lines.length * 6 + 4;
+            });
+        } else {
+            doc.text('Keep building your skills and apply with confidence!', 20, yPos);
+        }
+
+        // Footer
+        const pageCount = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setFontSize(8);
+            doc.setFont(undefined, 'italic');
+            doc.text('Generated by InternAI - Smart Job Match Analyzer', 105, 285, { align: 'center' });
+            doc.text(`Page ${i} of ${pageCount}`, 105, 290, { align: 'center' });
+        }
+
+        // Save the PDF
+        doc.save(`AI_Analysis_${result.company || 'Report'}_${new Date().toISOString().split('T')[0]}.pdf`);
     };
 
     return (
@@ -86,17 +206,40 @@ const AIAnalyzer = () => {
                 </p>
             </header>
 
+            {/* Error Display */}
+            {error && (
+                <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-4 flex items-center gap-3 text-red-600 dark:text-red-400"
+                >
+                    <AlertCircle className="h-5 w-5 shrink-0" />
+                    <span className="font-medium">{error}</span>
+                    <button onClick={() => setError('')} className="ml-auto hover:bg-red-100 dark:hover:bg-red-900/30 p-1 rounded-lg">
+                        <X className="h-4 w-4" />
+                    </button>
+                </motion.div>
+            )}
+
+            {/* Job Description Input Section */}
             <section className="glass rounded-[2.5rem] p-8 shadow-sm dark:bg-slate-900/50">
+                <div className="mb-6">
+                    <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2 flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-blue-500" />
+                        Paste Job Description
+                    </h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                        Paste any job description or internship posting to analyze your match
+                    </p>
+                </div>
+
                 <textarea
                     className="w-full h-64 rounded-3xl border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-6 text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-primary/10 transition-all font-medium placeholder:text-slate-400"
-                    placeholder="Paste the job description or internship details here..."
+                    placeholder="Paste any job description or internship posting here and click Analyze to see your match percentage..."
                     value={jdText}
                     onChange={(e) => setJdText(e.target.value)}
                 />
-                <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-6">
-                    <button className="flex items-center gap-2 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-primary transition-colors">
-                        <Upload className="h-4 w-4" /> Upload PDF/Doc (Coming Soon)
-                    </button>
+                <div className="mt-8 flex flex-col sm:flex-row items-center justify-end gap-6">
                     <button
                         onClick={handleAnalyze}
                         disabled={isLoading || !jdText.trim()}
@@ -207,16 +350,12 @@ const AIAnalyzer = () => {
                             </motion.div>
                         </div>
 
-                        <div className="flex justify-center flex-col sm:flex-row gap-4 pt-10">
-                            <button className="flex items-center justify-center gap-2 rounded-2xl bg-slate-100 dark:bg-slate-800 px-10 py-4 font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition-all">
-                                Download Analysis Report
-                            </button>
+                        <div className="flex justify-center pt-10">
                             <button
-                                onClick={handleSaveToTracker}
-                                disabled={isSaving}
-                                className="flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-10 py-4 font-bold text-white shadow-xl shadow-emerald-100 dark:shadow-emerald-900/20 hover:scale-105 transition-all disabled:opacity-50"
+                                onClick={handleDownloadReport}
+                                className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-blue-700 px-12 py-4 font-bold text-white shadow-xl shadow-blue-500/20 hover:scale-105 active:scale-95 transition-all"
                             >
-                                {isSaving ? 'Saving...' : 'Save to Tracker'}
+                                Download Analysis Report
                             </button>
                         </div>
                     </motion.div>

@@ -1,48 +1,199 @@
-# AI-Assisted Internship & Job Application Tracker
+# AI-Powered Internship & Job Application Platform
 
-A modern, production-ready MERN stack application designed to help students track their internship and job applications with AI-powered insights.
+A modern, production-ready MERN stack application to help students find internships, track applications, and get AI-powered career guidance.
 
-## 🚀 Features
+## ✨ Features
 
-- **Centralized Tracker**: Manage all your applications (Applied, Interview, Offer, Rejected) in one place.
-- **AI Job Analyzer**: Paste any job description to extract key skills and see your matching percentage.
-- **Interactive Dashboard**: Visualize your application progress with beautiful charts.
-- **Mobile Support (PWA)**: Installable on your mobile device for on-the-go tracking.
-- **Secure Auth**: JWT-based authentication for students and admins.
+### 🔍 Live Job Search
+- Real-time job listings via RapidAPI integration
+- Advanced filtering by title, location, and employment type
+- One-click application tracking
+
+### 🤖 AI Job Analyzer
+- Paste job descriptions to analyze skill match percentage
+- Identify missing skills and get personalized recommendations
+- Download professional PDF analysis reports
+
+### 💬 AI Career Bot
+- Personalized career advice based on your applications
+- Interactive career roadmap generation
+- Natural conversation for career guidance
+
+### 📊 Application Tracker
+- Centralized dashboard for all applications
+- Status tracking (Applied, Interview, Offer, Rejected)
+- Visual analytics with charts and insights
+
+### 🎨 Modern UI/UX
+- Dark/Light mode toggle
+- Responsive design for mobile and desktop
+- Smooth animations with Framer Motion
+- Professional glassmorphism design
 
 ## 🛠 Tech Stack
 
-- **Frontend**: React.js, Tailwind CSS (v4), Lucide Icons, Chart.js, Framer Motion.
-- **Backend**: Node.js, Express.js.
-- **Database**: MongoDB with Mongoose.
-- **AI/NLP**: NLP-based text analysis using Compromise.
+**Frontend:**
+- React.js with Vite
+- Tailwind CSS
+- Framer Motion (animations)
+- Chart.js (analytics)
+- Lucide React (icons)
+- Firebase (auth & storage)
 
-## 📦 Setup Instructions
+**Backend:**
+- Node.js & Express.js
+- MongoDB with Mongoose
+- JWT authentication
+- Groq AI (Llama 3.3 70B)
+- RapidAPI (JSearch)
+
+**AI Features:**
+- Job description analysis
+- Career advice generation
+- Resume skill extraction
+- Personalized roadmaps
+
+## 📦 Quick Setup
 
 ### Prerequisites
-- Node.js (v18+)
-- MongoDB Atlas Account
+- Node.js v18+
+- MongoDB Atlas account
+- Firebase project
+- API keys (Groq, RapidAPI)
 
-### Backend Setup
-1. Navigate to the `server` directory: `cd server`
-2. Install dependencies: `npm install`
-3. Create a `.env` file and add your `MONGODB_URI` and `JWT_SECRET`.
-4. (Optional) Seed the database: `node seed.js`
-5. Start the server: `npm start` (or `npm run dev` with nodemon)
+### Installation
 
-### Frontend Setup
-1. Navigate to the `client` directory: `cd client`
-2. Install dependencies: `npm install`
-3. Start the dev server: `npm run dev`
+1. **Clone the repository**
+```bash
+git clone <your-repo-url>
+cd Internship\ Project
+```
 
-## 📱 Mobile Installation (PWA)
-1. Open the website in your mobile browser.
-2. Tap "Add to Home Screen" when prompted or via the browser menu.
-3. The app will be available on your home screen with offline capabilities.
+2. **Server Setup**
+```bash
+cd server
+npm install
+cp .env.example .env
+# Edit .env with your credentials
+npm run dev
+```
 
-## 📂 Folder Structure
-- `server/`: Express API, Mongoose models, AI logic.
-- `client/`: React application, Tailwind styles, PWA config.
+3. **Client Setup**
+```bash
+cd client
+npm install
+npm run dev
+```
 
-## 🎓 CSE Major Project
-This project is designed for CSE final year students, focusing on scalability, clean code, and real-world utility.
+4. **Access the app**
+- Frontend: http://localhost:5173
+- Backend: http://localhost:5000
+
+## 🔑 Environment Variables
+
+### Server (.env)
+```env
+PORT=5000
+MONGODB_URI=your_mongodb_connection_string
+JWT_SECRET=your_jwt_secret_minimum_32_chars
+GROQ_API_KEY=your_groq_api_key
+RAPIDAPI_KEY=your_rapidapi_key
+NODE_ENV=development
+```
+
+See `server/.env.example` for a complete template.
+
+### Client
+The client automatically detects the environment (development vs production).
+
+## 🚀 Deployment
+
+See [Deployment Guide](./DEPLOYMENT.md) for detailed deployment instructions.
+
+**Quick Deploy to Render:**
+1. Push code to GitHub
+2. Create Web Service for backend (server directory)
+3. Create Static Site for frontend (client directory)
+4. Add environment variables in Render dashboard
+5. Done! ✅
+
+## 📂 Project Structure
+
+```
+Internship Project/
+├── client/                 # React frontend
+│   ├── src/
+│   │   ├── components/    # Reusable UI components
+│   │   ├── pages/         # Page components
+│   │   ├── context/       # React context (Auth, Theme)
+│   │   └── utils/         # Helper functions
+│   └── public/            # Static assets
+│
+├── server/                 # Express backend
+│   ├── models/            # Mongoose schemas
+│   ├── routes/            # API routes
+│   ├── middleware/        # Auth middleware
+│   └── controllers/       # Business logic
+│
+└── README.md              # You are here!
+```
+
+## 🎯 Key Features Explained
+
+### AI Job Analyzer
+Analyzes job descriptions to:
+- Extract required skills
+- Calculate your match percentage
+- Identify skill gaps
+- Provide actionable recommendations
+- Generate PDF reports
+
+### Career Bot
+- Context-aware conversations
+- Personalized advice based on your profile
+- Career roadmap generation
+- Best practices and tips
+
+### Live Job Search
+- Search thousands of real job listings
+- Filter by remote/hybrid/onsite
+- Save jobs directly to tracker
+- Auto-fill application details
+
+## 🧪 Production Ready
+
+✅ **Optimized & Clean**
+- Removed all test files
+- Cleaned up console logs
+- Optimized dependencies
+- Auto-environment detection
+
+✅ **Secure**
+- JWT authentication
+- Environment variable protection
+- Input validation
+- CORS configured
+
+✅ **Performant**
+- Code splitting
+- Lazy loading
+- Optimized bundle size
+- Fast API responses
+
+## 📄 License
+
+This project is for educational purposes as part of a CSE major project.
+
+## 🤝 Contributing
+
+This is an academic project. Feedback and suggestions are welcome!
+
+## 🆘 Support
+
+For deployment help, see the [Deployment Guide](./DEPLOYMENT.md).
+
+For issues or questions, check the documentation or create an issue.
+
+---
+
+**Built with ❤️ by Huesh**

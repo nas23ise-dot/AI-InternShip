@@ -105,6 +105,14 @@ export const SKILL_YOUTUBE_PLAYLISTS = {
         name: 'NumPy Full Course - freeCodeCamp',
         url: 'https://www.youtube.com/watch?v=QUT1VHiLmmI'
     },
+    'data analysis': {
+        name: 'Data Analysis with Python - freeCodeCamp',
+        url: 'https://www.youtube.com/watch?v=r-uOLxNrNk4'
+    },
+    'statistical modeling': {
+        name: 'Statistics for Data Science - freeCodeCamp',
+        url: 'https://www.youtube.com/watch?v=xxpc-HPKN28'
+    },
 
     // DevOps & Cloud
     'docker': {

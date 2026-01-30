@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
+import jsPDF from 'jspdf';
 import {
     Sparkles,
     Send,
@@ -12,7 +13,12 @@ import {
     Calendar,
     ArrowRight,
     Award,
-    CheckCircle2
+    CheckCircle2,
+    Lightbulb,
+    TrendingUp,
+    AlertCircle,
+    Download,
+    FileQuestion
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
@@ -29,6 +35,9 @@ const CareerBot = () => {
     const [messages, setMessages] = useState([
         { role: 'bot', content: `Hey ${user?.name?.split(' ')[0] || 'there'}! I'm your AI Career Coach. How can I help you today?` }
     ]);
+    const [careerAdvice, setCareerAdvice] = useState(null);
+    const [interviewQuestions, setInterviewQuestions] = useState(null);
+    const [loadingQuestions, setLoadingQuestions] = useState(false);
     const messagesEndRef = useRef(null);
 
     const scrollToBottom = () => {
@@ -107,6 +116,118 @@ const CareerBot = () => {
         }
     };
 
+    // Fetch Interview Questions and Download as PDF
+    const handleGetInterviewQuestions = async () => {
+        if (!result || !result.dreamJob) {
+            alert('Please generate a career roadmap first!');
+            return;
+        }
+
+        setLoadingQuestions(true);
+        try {
+            const res = await axios.post(
+                `${API_BASE_URL}/ai/interview-questions`,
+                { role: result.dreamJob },
+                { headers: { 'X-User-ID': user?.uid || user?._id } }
+            );
+
+            setInterviewQuestions(res.data);
+
+            // Automatically generate and download PDF
+            generateQuestionsPDF(res.data);
+
+            setMessages(prev => [...prev, {
+                role: 'bot',
+                content: `I've prepared ${res.data.totalQuestions} interview questions for ${res.data.role}. The PDF has been downloaded! 📄`
+            }]);
+        } catch (err) {
+            console.error('Error fetching questions:', err);
+            setMessages(prev => [...prev, {
+                role: 'bot',
+                content: 'Sorry, I couldn\'t fetch interview questions. Please try again.'
+            }]);
+        } finally {
+            setLoadingQuestions(false);
+        }
+    };
+
+    // Generate PDF from Interview Questions
+    const generateQuestionsPDF = (data) => {
+        const doc = new jsPDF();
+        let yPos = 20;
+
+        // Title
+        doc.setFontSize(18);
+        doc.setFont(undefined, 'bold');
+        doc.text(`Interview Questions: ${data.role}`, 105, yPos, { align: 'center' });
+        yPos += 10;
+
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'normal');
+        doc.text(`Total: ${data.totalQuestions} Questions | Generated: ${new Date().toLocaleDateString()}`, 105, yPos, { align: 'center' });
+        yPos += 15;
+
+        // Iterate through each round
+        Object.entries(data.questionsByRound).forEach(([round, questions]) => {
+            // Add new page if needed
+            if (yPos > 250) {
+                doc.addPage();
+                yPos = 20;
+            }
+
+            // Round header
+            doc.setFontSize(14);
+            doc.setFont(undefined, 'bold');
+            doc.text(round, 20, yPos);
+            yPos += 8;
+
+            // Questions
+            doc.setFontSize(10);
+            questions.forEach((q, idx) => {
+                if (yPos > 260) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+
+                // Question number and difficulty
+                doc.setFont(undefined, 'bold');
+                doc.text(`Q${idx + 1}. [${q.difficulty}]`, 20, yPos);
+                yPos += 5;
+
+                // Question
+                doc.setFont(undefined, 'normal');
+                const questionLines = doc.splitTextToSize(q.question, 170);
+                doc.text(questionLines, 20, yPos);
+                yPos += questionLines.length * 5 + 3;
+
+                // Answer
+                doc.setFont(undefined, 'italic');
+                doc.setTextColor(60, 60, 60);
+                const answerLines = doc.splitTextToSize(`Answer: ${q.answer}`, 170);
+                doc.text(answerLines, 20, yPos);
+                doc.setTextColor(0, 0, 0);
+                yPos += answerLines.length * 5 + 8;
+            });
+
+            yPos += 5;
+        });
+
+        // Footer on all pages
+        const pageCount = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setFontSize(8);
+            doc.setFont(undefined, 'italic');
+            doc.setTextColor(120, 120, 120);
+            doc.text('Prepared by InternAI Career Coach', 105, 290, { align: 'center' });
+            doc.text(`Page ${i} of ${pageCount}`, 105, 285, { align: 'center' });
+            doc.setTextColor(0, 0, 0);
+        }
+
+        // Download
+        doc.save(`InterviewQuestions_${data.role.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
+    };
+
     const timelineVariants = {
         hidden: { opacity: 0 },
         visible: { opacity: 1, transition: { staggerChildren: 0.2 } }
@@ -115,6 +236,26 @@ const CareerBot = () => {
     const itemVariants = {
         hidden: { opacity: 0, x: -20 },
         visible: { opacity: 1, x: 0 }
+    };
+
+    // Fetch Career Advice based on saved applications
+    const handleCareerInsights = async () => {
+        setLoading(true);
+        setMessages(prev => [...prev, { role: 'bot', content: "Analyzing your job applications and generating personalized career insights..." }]);
+
+        try {
+            const res = await axios.post(`${API_BASE_URL}/ai/career-advice`, {},
+                { headers: { 'X-User-ID': user?.uid || user?._id } }
+            );
+            setCareerAdvice(res.data);
+            setResult(null); // Clear roadmap/eligibility results
+            setMessages(prev => [...prev, { role: 'bot', content: `I've analyzed your ${res.data.applicationStats?.total || 0} job applications and prepared personalized career insights for you!` }]);
+        } catch (err) {
+            console.error('Career Advice Error:', err);
+            setMessages(prev => [...prev, { role: 'bot', content: "Sorry, I couldn't fetch your career insights. Please make sure you have some applications saved in your tracker." }]);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -174,7 +315,7 @@ const CareerBot = () => {
                         </button>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-6 space-y-6 scroll-smooth custom-scrollbar">
+                    <div className="flex-1 overflow-y-auto p-6 pb-32 space-y-6 scroll-smooth custom-scrollbar">
                         {messages.map((msg, i) => (
                             <motion.div
                                 key={i}
@@ -204,7 +345,7 @@ const CareerBot = () => {
 
                     <div className="p-6 bg-white/10 dark:bg-slate-900/10 backdrop-blur-md border-t border-white/10 dark:border-slate-800 space-y-4">
                         {mode === 'menu' && (
-                            <div className="grid grid-cols-2 gap-3 mb-2">
+                            <div className="grid grid-cols-3 gap-3 mb-2">
                                 <motion.button
                                     whileHover={{ scale: 1.02 }}
                                     whileTap={{ scale: 0.98 }}
@@ -226,6 +367,17 @@ const CareerBot = () => {
                                         <Award className="h-5 w-5" />
                                     </div>
                                     <span className="text-[10px] uppercase font-black tracking-widest text-slate-500">Roadmap</span>
+                                </motion.button>
+                                <motion.button
+                                    whileHover={{ scale: 1.02 }}
+                                    whileTap={{ scale: 0.98 }}
+                                    onClick={() => { setCareerAdvice(null); handleCareerInsights(); }}
+                                    className="p-4 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 hover:from-amber-100 hover:to-orange-100 dark:hover:from-amber-900/30 dark:hover:to-orange-900/30 rounded-2xl flex flex-col items-center gap-2 transition-all shadow-md group border border-amber-200/50 dark:border-amber-800/50"
+                                >
+                                    <div className="h-10 w-10 rounded-xl bg-amber-100 dark:bg-amber-900/30 text-amber-600 flex items-center justify-center group-hover:rotate-12 transition-transform">
+                                        <Lightbulb className="h-5 w-5" />
+                                    </div>
+                                    <span className="text-[10px] uppercase font-black tracking-widest text-amber-600 dark:text-amber-400">Insights</span>
                                 </motion.button>
                             </div>
                         )}
@@ -271,6 +423,157 @@ const CareerBot = () => {
                                 </div>
                                 <h3 className="text-2xl font-black text-slate-900 dark:text-white mt-8 mb-2">Analyzing Career Matrix...</h3>
                                 <p className="text-slate-500 font-bold">Constructing personalized trajectory.</p>
+                            </motion.div>
+                        ) : careerAdvice ? (
+                            /* Career Insights Result UI */
+                            <motion.div
+                                key="career-insights"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                className="space-y-8"
+                            >
+                                {/* Header */}
+                                <div className="glass-morphic rounded-[3.5rem] p-10 border border-amber-200/50 dark:border-amber-800/50 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/10 dark:to-orange-900/10 relative overflow-hidden shadow-2xl">
+                                    <div className="flex items-start gap-6">
+                                        <div className="h-16 w-16 bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl flex items-center justify-center shadow-lg">
+                                            <Lightbulb className="h-8 w-8 text-white" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <h2 className="text-3xl font-black text-slate-900 dark:text-white mb-2">Career Insights</h2>
+                                            <p className="text-slate-600 dark:text-slate-300 font-medium">{careerAdvice.overallAssessment}</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Stats Bar */}
+                                    {careerAdvice.applicationStats && (
+                                        <div className="mt-8 grid grid-cols-4 gap-4">
+                                            {[
+                                                { label: 'Total', value: careerAdvice.applicationStats.total, color: 'bg-slate-500' },
+                                                { label: 'Applied', value: careerAdvice.applicationStats.applied, color: 'bg-blue-500' },
+                                                { label: 'Interviews', value: careerAdvice.applicationStats.interview, color: 'bg-amber-500' },
+                                                { label: 'Offers', value: careerAdvice.applicationStats.offer, color: 'bg-emerald-500' }
+                                            ].map((stat, i) => (
+                                                <div key={i} className="text-center p-4 bg-white/60 dark:bg-slate-800/60 rounded-2xl">
+                                                    <div className={`inline-block h-3 w-3 rounded-full ${stat.color} mb-2`} />
+                                                    <p className="text-2xl font-black text-slate-900 dark:text-white">{stat.value}</p>
+                                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">{stat.label}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Strengths & Areas to Improve */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="glass-morphic rounded-3xl p-8 border border-emerald-200/50 dark:border-emerald-800/50 bg-emerald-50/50 dark:bg-emerald-900/10">
+                                        <h3 className="text-xl font-black text-emerald-700 dark:text-emerald-400 mb-6 flex items-center gap-3">
+                                            <CheckCircle2 className="h-6 w-6" />
+                                            Your Strengths
+                                        </h3>
+                                        <div className="space-y-3">
+                                            {careerAdvice.strengths?.map((strength, i) => (
+                                                <div key={i} className="flex items-start gap-3 p-3 bg-white/60 dark:bg-slate-800/40 rounded-xl">
+                                                    <div className="h-6 w-6 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 flex items-center justify-center text-xs font-bold shrink-0">{i + 1}</div>
+                                                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{strength}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="glass-morphic rounded-3xl p-8 border border-rose-200/50 dark:border-rose-800/50 bg-rose-50/50 dark:bg-rose-900/10">
+                                        <h3 className="text-xl font-black text-rose-700 dark:text-rose-400 mb-6 flex items-center gap-3">
+                                            <TrendingUp className="h-6 w-6" />
+                                            Areas to Improve
+                                        </h3>
+                                        <div className="space-y-3">
+                                            {careerAdvice.areasToImprove?.map((area, i) => (
+                                                <div key={i} className="flex items-start gap-3 p-3 bg-white/60 dark:bg-slate-800/40 rounded-xl">
+                                                    <div className="h-6 w-6 rounded-full bg-rose-100 dark:bg-rose-900/30 text-rose-600 flex items-center justify-center text-xs font-bold shrink-0">{i + 1}</div>
+                                                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{area}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Strategic Advice */}
+                                {careerAdvice.strategicAdvice && careerAdvice.strategicAdvice.length > 0 && (
+                                    <div className="glass-morphic rounded-3xl p-8 border border-indigo-200/50 dark:border-indigo-800/50">
+                                        <h3 className="text-xl font-black text-slate-900 dark:text-white mb-6 flex items-center gap-3">
+                                            <Zap className="h-6 w-6 text-indigo-500" />
+                                            Strategic Advice
+                                        </h3>
+                                        <div className="space-y-4">
+                                            {careerAdvice.strategicAdvice.map((advice, i) => (
+                                                <div key={i} className={`p-6 rounded-2xl border-l-4 ${advice.priority === 'high' ? 'border-rose-500 bg-rose-50/50 dark:bg-rose-900/10' :
+                                                    advice.priority === 'medium' ? 'border-amber-500 bg-amber-50/50 dark:bg-amber-900/10' :
+                                                        'border-blue-500 bg-blue-50/50 dark:bg-blue-900/10'
+                                                    }`}>
+                                                    <div className="flex items-center gap-3 mb-2">
+                                                        <h4 className="font-bold text-slate-900 dark:text-white">{advice.title}</h4>
+                                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${advice.priority === 'high' ? 'bg-rose-100 text-rose-600' :
+                                                            advice.priority === 'medium' ? 'bg-amber-100 text-amber-600' :
+                                                                'bg-blue-100 text-blue-600'
+                                                            }`}>{advice.priority}</span>
+                                                    </div>
+                                                    <p className="text-sm text-slate-600 dark:text-slate-400">{advice.description}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Role Recommendations */}
+                                {careerAdvice.roleRecommendations && careerAdvice.roleRecommendations.length > 0 && (
+                                    <div className="glass-morphic rounded-3xl p-8 border border-purple-200/50 dark:border-purple-800/50 bg-purple-50/30 dark:bg-purple-900/10">
+                                        <h3 className="text-xl font-black text-slate-900 dark:text-white mb-6 flex items-center gap-3">
+                                            <Award className="h-6 w-6 text-purple-500" />
+                                            Recommended Roles
+                                        </h3>
+                                        <div className="flex flex-wrap gap-3">
+                                            {careerAdvice.roleRecommendations.map((role, i) => (
+                                                <span key={i} className="px-5 py-3 bg-white dark:bg-slate-800 rounded-2xl text-sm font-bold text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 shadow-sm hover:scale-105 transition-transform cursor-default">
+                                                    {role}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Next Steps */}
+                                {careerAdvice.nextSteps && careerAdvice.nextSteps.length > 0 && (
+                                    <div className="glass-morphic rounded-3xl p-8 border border-blue-200/50 dark:border-blue-800/50 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 dark:from-blue-900/10 dark:to-indigo-900/10">
+                                        <h3 className="text-xl font-black text-slate-900 dark:text-white mb-6 flex items-center gap-3">
+                                            <ArrowRight className="h-6 w-6 text-blue-500" />
+                                            Your Next Steps
+                                        </h3>
+                                        <div className="space-y-3">
+                                            {careerAdvice.nextSteps.map((step, i) => (
+                                                <div key={i} className="flex items-center gap-4 p-4 bg-white/70 dark:bg-slate-800/50 rounded-2xl group hover:bg-white dark:hover:bg-slate-800 transition-colors">
+                                                    <div className="h-10 w-10 rounded-xl bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center font-black shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                                        {i + 1}
+                                                    </div>
+                                                    <span className="font-medium text-slate-700 dark:text-slate-300">{step}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Motivational Message */}
+                                {careerAdvice.motivationalMessage && (
+                                    <div className="glass-morphic rounded-3xl p-8 bg-gradient-to-br from-indigo-600 to-purple-700 text-white shadow-2xl">
+                                        <div className="flex items-start gap-4">
+                                            <div className="h-12 w-12 bg-white/20 rounded-2xl flex items-center justify-center shrink-0">
+                                                <Sparkles className="h-6 w-6 text-white" />
+                                            </div>
+                                            <div>
+                                                <h4 className="font-bold text-white/80 uppercase tracking-widest text-sm mb-2">A Message For You</h4>
+                                                <p className="text-lg font-semibold italic leading-relaxed">{careerAdvice.motivationalMessage}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </motion.div>
                         ) : !result ? (
                             <motion.div
@@ -431,6 +734,90 @@ const CareerBot = () => {
                                                 );
                                             })}
                                         </div>
+
+                                        <motion.div
+                                            variants={itemVariants}
+                                            className="mt-10 flex flex-col items-center gap-8"
+                                        >
+                                            {!interviewQuestions ? (
+                                                <motion.button
+                                                    onClick={handleGetInterviewQuestions}
+                                                    disabled={loadingQuestions}
+                                                    whileHover={{ scale: 1.05 }}
+                                                    whileTap={{ scale: 0.95 }}
+                                                    className="group relative px-8 py-4 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-[2rem] shadow-xl shadow-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/50 transition-all font-bold text-lg flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    {loadingQuestions ? (
+                                                        <>
+                                                            <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                            <span>Preparing Questions...</span>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <FileQuestion className="h-6 w-6" />
+                                                            <span>Generate & Download Interview Questions</span>
+                                                            <Download className="h-5 w-5 group-hover:translate-y-1 transition-transform" />
+                                                        </>
+                                                    )}
+                                                </motion.button>
+                                            ) : (
+                                                <motion.div
+                                                    initial={{ opacity: 0, y: 20 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    className="w-full space-y-6"
+                                                >
+                                                    <div className="flex justify-between items-center px-4">
+                                                        <div>
+                                                            <h3 className="text-2xl font-black text-slate-900 dark:text-white">Interview Intelligence</h3>
+                                                            <p className="text-slate-500 font-bold">Generated Questions for {interviewQuestions.role}</p>
+                                                        </div>
+                                                        <motion.button
+                                                            onClick={() => generateQuestionsPDF(interviewQuestions)}
+                                                            whileHover={{ scale: 1.05 }}
+                                                            whileTap={{ scale: 0.95 }}
+                                                            className="px-6 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold flex items-center gap-2 shadow-lg"
+                                                        >
+                                                            <Download className="h-4 w-4" />
+                                                            Download PDF
+                                                        </motion.button>
+                                                    </div>
+
+                                                    <div className="space-y-6">
+                                                        {Object.entries(interviewQuestions.questionsByRound).map(([round, questions], idx) => (
+                                                            <div key={idx} className="glass-morphic p-8 rounded-[2.5rem] border border-indigo-100 dark:border-slate-800 bg-indigo-50/30 dark:bg-slate-900/50">
+                                                                <h4 className="text-lg font-black text-indigo-600 dark:text-indigo-400 mb-6 uppercase tracking-widest flex items-center gap-3">
+                                                                    <div className="h-2 w-2 rounded-full bg-indigo-500" />
+                                                                    {round}
+                                                                </h4>
+                                                                <div className="space-y-6">
+                                                                    {questions.map((q, qIdx) => (
+                                                                        <div key={qIdx} className="bg-white/60 dark:bg-slate-800/60 p-6 rounded-2xl border border-white/40 dark:border-slate-700/50">
+                                                                            <div className="flex justify-between items-start gap-4 mb-3">
+                                                                                <h5 className="font-bold text-slate-800 dark:text-slate-200 text-lg">
+                                                                                    {qIdx + 1}. {q.question}
+                                                                                </h5>
+                                                                                <span className={`px-3 py-1 rounded-lg text-xs font-black uppercase tracking-wider shrink-0 ${q.difficulty === 'Hard' ? 'bg-rose-100 text-rose-600' :
+                                                                                        q.difficulty === 'Medium' ? 'bg-amber-100 text-amber-600' :
+                                                                                            'bg-emerald-100 text-emerald-600'
+                                                                                    }`}>
+                                                                                    {q.difficulty}
+                                                                                </span>
+                                                                            </div>
+                                                                            <div className="pl-4 border-l-2 border-indigo-200 dark:border-slate-600">
+                                                                                <p className="text-sm font-medium text-slate-600 dark:text-slate-400 leading-relaxed">
+                                                                                    <span className="font-black text-indigo-500 block mb-1">Target Answer:</span>
+                                                                                    {q.answer}
+                                                                                </p>
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </motion.div>
+                                            )}
+                                        </motion.div>
                                     </motion.div>
                                 </div>
                             </motion.div>
