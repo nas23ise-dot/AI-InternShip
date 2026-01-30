@@ -112,7 +112,7 @@ const Dashboard = () => {
     }, [user]);
 
     const fetchDashboardData = async () => {
-        console.log("Dashboard Render - User:", user);
+        console.log("🔥 FRESH DEPLOYMENT CHECK - User:", user);
         console.log("User Skills:", user?.skills);
         console.log("Is Dismissed:", isDismissed);
 
