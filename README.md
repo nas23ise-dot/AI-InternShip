@@ -183,4 +183,4 @@ For deployment help, see the [Deployment Guide](./DEPLOYMENT.md).
 
 ## 👨‍💻 Author
 **Naveen S**
-CSE Student | MERN Stack Developer | AI Enthusiast
+ISE Student | MERN Stack Developer | AI Enthusiast
